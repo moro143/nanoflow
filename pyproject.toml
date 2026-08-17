@@ -1,0 +1,39 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "nanoflow-core"
+version = "0.1.0"
+description = "Lightweight, zero-dependency DAG task runner that drops into any Python process (local, Lambda, Glue, SageMaker)."
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "Apache-2.0" }
+authors = [{ name = "moro143" }]
+keywords = ["dag", "orchestration", "pipeline", "aws", "glue", "lambda", "data-engineering"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3",
+    "Topic :: Software Development :: Libraries",
+]
+dependencies = []
+
+[project.optional-dependencies]
+aws = ["boto3>=1.26"]
+dev = ["pytest>=7", "pytest-cov", "ruff", "mypy"]
+
+[project.urls]
+Homepage = "https://github.com/moro143/nanoflow"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/nanoflow"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py39"
