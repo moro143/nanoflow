@@ -109,6 +109,13 @@ Custom sinks: subclass `nanoflow.Sink` and override any of `on_run_start`, `on_t
 - `nanoflow` CLI: pretty-print a run.json, render the DAG as Mermaid/DOT
 - CloudWatch metrics sink, Slack/SNS callback helpers
 - Hosted run explorer (cross-job timeline, lineage, cost) — the paid tier
+- Shared config file (e.g. `nanoflow.toml`) so a multi-job pipeline (several Glue jobs +
+  Lambdas) can agree on bucket/prefix/tags without repeating them per job. Format still
+  undecided (yaml/json/toml).
+- `Store` abstraction for passing actual result data between separate job invocations —
+  today only `run_id` is shared across steps (via Step Functions / env), the real data
+  stays in-memory within one `Flow.run()` call. Needs deciding: local-disk backend before
+  S3, and whether tasks opt in per-task (`store.put(...)`) vs. automatic.
 
 ## Development
 
