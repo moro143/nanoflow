@@ -1,5 +1,7 @@
 # nanoflow-core
 
+[![CI](https://github.com/moro143/nanoflow/actions/workflows/ci.yml/badge.svg)](https://github.com/moro143/nanoflow/actions/workflows/ci.yml)
+
 A lightweight, zero-dependency DAG task runner that lives *inside* your existing Python code.
 
 It does not schedule, deploy or provision anything. You add it to a Lambda, a Glue job, a SageMaker

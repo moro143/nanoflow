@@ -4,7 +4,7 @@ from __future__ import annotations
 import functools
 import inspect
 from dataclasses import dataclass, field
-from typing import Any, Callable, Optional
+from typing import Any, Callable
 
 from nanoflow.context import current_flow
 
@@ -32,12 +32,12 @@ class Task:
         self,
         fn: Callable[..., Any],
         *,
-        name: Optional[str] = None,
+        name: str | None = None,
         retries: int = 0,
         retry_delay: float = 0.0,
         retry_backoff: float = 2.0,
-        timeout: Optional[float] = None,
-        tags: Optional[dict[str, str]] = None,
+        timeout: float | None = None,
+        tags: dict[str, str] | None = None,
     ) -> None:
         self.fn = fn
         self.name = name or fn.__name__
@@ -66,14 +66,14 @@ class Task:
 
 
 def task(
-    fn: Optional[Callable[..., Any]] = None,
+    fn: Callable[..., Any] | None = None,
     *,
-    name: Optional[str] = None,
+    name: str | None = None,
     retries: int = 0,
     retry_delay: float = 0.0,
     retry_backoff: float = 2.0,
-    timeout: Optional[float] = None,
-    tags: Optional[dict[str, str]] = None,
+    timeout: float | None = None,
+    tags: dict[str, str] | None = None,
 ) -> Any:
     """Decorator turning a function into a Task.
 

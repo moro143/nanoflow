@@ -2,21 +2,21 @@
 from __future__ import annotations
 
 import contextvars
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from nanoflow.flow import Flow
 
-_current: contextvars.ContextVar[Optional["Flow"]] = contextvars.ContextVar(
+_current: contextvars.ContextVar[Flow | None] = contextvars.ContextVar(
     "nanoflow_current_flow", default=None
 )
 
 
-def current_flow() -> Optional["Flow"]:
+def current_flow() -> Flow | None:
     return _current.get()
 
 
-def push_flow(flow: "Flow") -> contextvars.Token:
+def push_flow(flow: Flow) -> contextvars.Token:
     return _current.set(flow)
 
 

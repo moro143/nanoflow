@@ -5,7 +5,7 @@ import json
 import time
 import traceback
 from dataclasses import asdict, dataclass, field
-from typing import Any, Optional
+from typing import Any
 
 MAX_REPR = 200
 
@@ -18,7 +18,7 @@ def _short_repr(value: Any) -> str:
     """
     try:
         r = repr(value)
-    except Exception:  # pragma: no cover - defensive
+    except Exception:  # noqa: BLE001 - repr() itself may raise for a broken object
         r = f"<unrepr-able {type(value).__name__}>"
     if len(r) > MAX_REPR:
         r = r[:MAX_REPR] + "..."
@@ -31,19 +31,19 @@ class TaskRecord:
     task: str
     status: str = "pending"  # pending | running | success | failed | skipped
     attempts: int = 0
-    started_at: Optional[float] = None
-    ended_at: Optional[float] = None
+    started_at: float | None = None
+    ended_at: float | None = None
     upstream: list[str] = field(default_factory=list)
     inputs: dict[str, str] = field(default_factory=dict)
-    output_type: Optional[str] = None
-    output_repr: Optional[str] = None
-    error: Optional[str] = None
-    error_type: Optional[str] = None
-    traceback: Optional[str] = None
+    output_type: str | None = None
+    output_repr: str | None = None
+    error: str | None = None
+    error_type: str | None = None
+    traceback: str | None = None
     tags: dict[str, str] = field(default_factory=dict)
 
     @property
-    def duration_ms(self) -> Optional[float]:
+    def duration_ms(self) -> float | None:
         if self.started_at is None or self.ended_at is None:
             return None
         return round((self.ended_at - self.started_at) * 1000, 3)
@@ -80,15 +80,15 @@ class RunRecord:
     flow: str
     run_id: str
     status: str = "pending"  # pending | running | success | failed
-    started_at: Optional[float] = None
-    ended_at: Optional[float] = None
+    started_at: float | None = None
+    ended_at: float | None = None
     environment: dict[str, Any] = field(default_factory=dict)
     params: dict[str, Any] = field(default_factory=dict)
     tasks: dict[str, TaskRecord] = field(default_factory=dict)
     graph: dict[str, Any] = field(default_factory=dict)
 
     @property
-    def duration_ms(self) -> Optional[float]:
+    def duration_ms(self) -> float | None:
         if self.started_at is None or self.ended_at is None:
             return None
         return round((self.ended_at - self.started_at) * 1000, 3)
@@ -111,7 +111,7 @@ class RunRecord:
             "tasks": {k: v.to_dict() for k, v in self.tasks.items()},
         }
 
-    def to_json(self, indent: Optional[int] = 2) -> str:
+    def to_json(self, indent: int | None = 2) -> str:
         return json.dumps(self.to_dict(), indent=indent, default=str)
 
     def summary(self) -> dict[str, Any]:

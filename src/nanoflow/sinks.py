@@ -9,7 +9,7 @@ import logging
 import os
 import sys
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from nanoflow.records import RunRecord, TaskRecord
 
@@ -98,7 +98,7 @@ class S3Sink(Sink):
 
     def _s3(self) -> Any:
         if self._client is None:
-            import boto3  # optional dependency
+            import boto3  # type: ignore[import-not-found]  # optional dependency
 
             self._client = boto3.client("s3")
         return self._client
@@ -112,7 +112,7 @@ class S3Sink(Sink):
 class CallbackSink(Sink):
     """Wrap plain functions as a sink, e.g. to push metrics or Slack messages."""
 
-    def __init__(self, on_run_end: Optional[Any] = None, on_task_end: Optional[Any] = None) -> None:
+    def __init__(self, on_run_end: Any | None = None, on_task_end: Any | None = None) -> None:
         self._run_end = on_run_end
         self._task_end = on_task_end
 

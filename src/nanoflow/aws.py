@@ -8,7 +8,7 @@ from __future__ import annotations
 import functools
 import os
 import sys
-from typing import Any, Callable, Optional
+from typing import Any, Callable
 
 from nanoflow.errors import FlowFailed
 from nanoflow.records import RunRecord
@@ -16,7 +16,7 @@ from nanoflow.records import RunRecord
 RUN_ID_KEYS = ("nanoflow_run_id", "run_id", "runId")
 
 
-def run_id_from_event(event: Any) -> Optional[str]:
+def run_id_from_event(event: Any) -> str | None:
     """Extract a run id from a Lambda/Step Functions event.
 
     Looks at top-level keys and at `$.nanoflow`. Step Functions users typically
@@ -39,7 +39,7 @@ def run_id_from_event(event: Any) -> Optional[str]:
 
 
 def lambda_flow(
-    fn: Optional[Callable[..., Any]] = None,
+    fn: Callable[..., Any] | None = None,
     *,
     return_summary: bool = True,
     reraise: bool = True,
@@ -87,7 +87,7 @@ def lambda_flow(
     return wrap(fn) if fn is not None else wrap
 
 
-def glue_args(*names: str, argv: Optional[list[str]] = None) -> dict[str, str]:
+def glue_args(*names: str, argv: list[str] | None = None) -> dict[str, str]:
     """Parse `--KEY value` / `--KEY=value` style Glue job arguments without awsglue.
 
     Works locally too, so the same script can run outside Glue.
@@ -113,7 +113,7 @@ def glue_args(*names: str, argv: Optional[list[str]] = None) -> dict[str, str]:
     return out
 
 
-def glue_run_id(argv: Optional[list[str]] = None) -> Optional[str]:
+def glue_run_id(argv: list[str] | None = None) -> str | None:
     """Return a stable run id inside Glue: explicit --nanoflow_run_id, else JOB_RUN_ID."""
     a = glue_args("nanoflow_run_id", "JOB_RUN_ID", argv=argv)
     return a.get("nanoflow_run_id") or a.get("JOB_RUN_ID")
