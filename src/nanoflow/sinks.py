@@ -77,19 +77,24 @@ class JsonLinesSink(Sink):
 
 
 class FileSink(Sink):
-    """Writes the full run.json to a directory (default .nanoflow/runs/<run_id>.json)."""
+    """Writes the full run.json to a directory (default .nanoflow/runs/<run_id>/<flow>.json).
+
+    Every step sharing a run_id lands in the same subdirectory, so `nanoflow pipeline
+    <run_id>` (and just `ls`) can see the whole pipeline as one thing.
+    """
 
     def __init__(self, directory: str | os.PathLike = ".nanoflow/runs") -> None:
         self.directory = Path(directory)
 
     def on_run_end(self, run: RunRecord) -> None:
-        self.directory.mkdir(parents=True, exist_ok=True)
-        path = self.directory / f"{_safe(run.flow)}__{_safe(run.run_id)}.json"
+        out_dir = self.directory / _safe(run.run_id)
+        out_dir.mkdir(parents=True, exist_ok=True)
+        path = out_dir / f"{_safe(run.flow)}.json"
         path.write_text(run.to_json())
 
 
 class S3Sink(Sink):
-    """Uploads run.json to s3://bucket/prefix/<flow>/<run_id>.json. Requires boto3."""
+    """Uploads run.json to s3://bucket/prefix/<run_id>/<flow>.json. Requires boto3."""
 
     def __init__(self, bucket: str, prefix: str = "nanoflow/runs", client: Any = None) -> None:
         self.bucket = bucket
@@ -104,7 +109,7 @@ class S3Sink(Sink):
         return self._client
 
     def on_run_end(self, run: RunRecord) -> None:
-        key = f"{self.prefix}/{_safe(run.flow)}/{_safe(run.run_id)}.json"
+        key = f"{self.prefix}/{_safe(run.run_id)}/{_safe(run.flow)}.json"
         self._s3().put_object(Bucket=self.bucket, Key=key, Body=run.to_json().encode(),
                               ContentType="application/json")
 

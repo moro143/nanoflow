@@ -45,7 +45,7 @@ print(n.result())      # 10
 print(run.summary())   # {'flow': 'etl', 'status': 'success', 'tasks': {'success': 3}, ...}
 ```
 
-Locally this logs to stdout and writes `.nanoflow/runs/etl__<run_id>.json`.
+Locally this logs to stdout and writes `.nanoflow/runs/<run_id>/etl.json`.
 Inside Lambda/Glue it emits JSON lines to CloudWatch, and to S3 if `NANOFLOW_S3_BUCKET` is set.
 
 Calling a `@task` outside a `Flow` just calls the function, so tasks stay unit-testable.
@@ -101,13 +101,30 @@ Custom sinks: subclass `nanoflow.Sink` and override any of `on_run_start`, `on_t
 ## CLI
 
 ```bash
-nanoflow show .nanoflow/runs/etl__3e78029f4f0d.json     # summary + per-task table
-nanoflow graph .nanoflow/runs/etl__3e78029f4f0d.json     # DAG as Mermaid (default)
-nanoflow graph .nanoflow/runs/etl__3e78029f4f0d.json --format dot
+nanoflow show .nanoflow/runs/3e78029f4f0d/etl.json      # summary + per-task table
+nanoflow graph .nanoflow/runs/3e78029f4f0d/etl.json      # DAG as Mermaid (default)
+nanoflow graph .nanoflow/runs/3e78029f4f0d/etl.json --format dot
 ```
 
 `show` exits `1` if the run failed, `0` otherwise — usable in scripts/CI. Both commands read
 a `run.json` produced by `FileSink`/`S3Sink`; no live Flow object needed.
+
+If several separate scripts/jobs share one `run_id` (see below), `nanoflow pipeline` shows
+them together as one pipeline, ordered by start time:
+
+```bash
+nanoflow pipeline demo-1                  # summary table across every step sharing that run_id
+nanoflow pipeline demo-1 --graph          # + a combined Mermaid diagram, one subgraph per step
+nanoflow pipeline demo-1 --dir ./runs     # look somewhere other than .nanoflow/runs
+```
+
+Exits `1` if any step failed. This only reads the `run.json` files each step's `FileSink`
+already wrote — nanoflow doesn't run or coordinate the steps itself. Locally, share a run_id
+across separate scripts with the `NANOFLOW_RUN_ID` env var (in Step Functions, pass
+`"nanoflow_run_id.$": "$$.Execution.Name"` to each step instead — see above). See
+`examples/pipeline_filter.py` and `examples/pipeline_stats.py` for a full two-step example,
+including how the steps hand real data to each other (plain files — nanoflow only tracks
+that each step ran, never the payload).
 
 ## Design notes
 
@@ -124,10 +141,6 @@ a `run.json` produced by `FileSink`/`S3Sink`; no live Flow object needed.
 - Shared config file (e.g. `nanoflow.toml`) so a multi-job pipeline (several Glue jobs +
   Lambdas) can agree on bucket/prefix/tags without repeating them per job. Format still
   undecided (yaml/json/toml).
-- `Store` abstraction for passing actual result data between separate job invocations —
-  today only `run_id` is shared across steps (via Step Functions / env), the real data
-  stays in-memory within one `Flow.run()` call. Needs deciding: local-disk backend before
-  S3, and whether tasks opt in per-task (`store.put(...)`) vs. automatic.
 
 ## Development
 

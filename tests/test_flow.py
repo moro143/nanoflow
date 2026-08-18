@@ -165,13 +165,13 @@ def test_jsonlines_and_file_sinks(tmp_path):
     buf = io.StringIO()
     with Flow("t", sinks=[JsonLinesSink(buf), FileSink(tmp_path)]) as f:
         add(one(), 1)
-    f.run()
+    rec = f.run()
     events = [json.loads(line) for line in buf.getvalue().splitlines()]
     assert events[0]["nanoflow_event"] == "run_start"
     assert events[-1]["nanoflow_event"] == "run_end"
-    files = list(tmp_path.glob("*.json"))
-    assert len(files) == 1
-    data = json.loads(files[0].read_text())
+    path = tmp_path / rec.run_id / "t.json"
+    assert path.exists()
+    data = json.loads(path.read_text())
     assert data["status"] == "success" and set(data["tasks"]) == {"one", "add"}
 
 

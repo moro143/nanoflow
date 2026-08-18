@@ -1,6 +1,6 @@
 """Run with: python examples/local_etl.py
 
-Writes .nanoflow/runs/<flow>__<run_id>.json and logs to stdout.
+Writes .nanoflow/runs/<run_id>/<flow>.json and logs to stdout.
 """
 import logging
 import random
