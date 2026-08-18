@@ -96,6 +96,17 @@ Flow(
 Custom sinks: subclass `nanoflow.Sink` and override any of `on_run_start`, `on_task_start`,
 `on_task_end`, `on_run_end`. Sinks are best-effort and never fail the flow.
 
+## CLI
+
+```bash
+nanoflow show .nanoflow/runs/etl__3e78029f4f0d.json     # summary + per-task table
+nanoflow graph .nanoflow/runs/etl__3e78029f4f0d.json     # DAG as Mermaid (default)
+nanoflow graph .nanoflow/runs/etl__3e78029f4f0d.json --format dot
+```
+
+`show` exits `1` if the run failed, `0` otherwise — usable in scripts/CI. Both commands read
+a `run.json` produced by `FileSink`/`S3Sink`; no live Flow object needed.
+
 ## Design notes
 
 - Data is passed between tasks **in memory** as Python objects (DataFrames are fine). Nanoflow runs
@@ -106,7 +117,6 @@ Custom sinks: subclass `nanoflow.Sink` and override any of `on_run_start`, `on_t
 
 ## Roadmap
 
-- `nanoflow` CLI: pretty-print a run.json, render the DAG as Mermaid/DOT
 - CloudWatch metrics sink, Slack/SNS callback helpers
 - Hosted run explorer (cross-job timeline, lineage, cost) — the paid tier
 - Shared config file (e.g. `nanoflow.toml`) so a multi-job pipeline (several Glue jobs +
