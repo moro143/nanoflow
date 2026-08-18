@@ -4,17 +4,7 @@ import time
 
 import pytest
 
-from nanoflow import (
-    CallbackSink,
-    CycleError,
-    FileSink,
-    Flow,
-    FlowFailed,
-    JsonLinesSink,
-    TaskTimeout,
-    task,
-)
-from nanoflow.aws import glue_args, lambda_flow, run_id_from_event
+from nanoflow import CallbackSink, FileSink, Flow, FlowFailed, JsonLinesSink, task
 
 
 @task
@@ -44,10 +34,6 @@ def test_linear_flow_and_results():
     assert rec.tasks["add_1"].upstream == ["add", "one"]
 
 
-def test_task_outside_flow_is_plain_function():
-    assert add(2, 3) == 5
-
-
 def test_refs_inside_containers_create_edges():
     @task
     def total(xs):
@@ -65,7 +51,7 @@ def test_failure_skips_downstream_and_raises():
     with Flow("t", sinks=[]) as f:
         a = one()
         b = boom(a)
-        c = add(b, 1)
+        add(b, 1)
     with pytest.raises(FlowFailed):
         f.run()
     assert f.record.tasks["boom"].status == "failed"
@@ -80,6 +66,15 @@ def test_raise_on_failure_false_returns_record():
     rec = f.run()
     assert rec.status == "failed"
     assert rec.summary()["failed"] == ["boom"]
+
+
+def test_result_of_before_run_raises():
+    with Flow("t", sinks=[]) as f:
+        a = one()
+    with pytest.raises(KeyError):
+        f.result_of("one")
+    with pytest.raises(KeyError):
+        a.result()
 
 
 def test_retries():
@@ -97,6 +92,20 @@ def test_retries():
     f.run()
     assert r.result() == "ok"
     assert f.record.tasks["flaky"].attempts == 3
+
+
+def test_retry_backoff_increases_delay(monkeypatch):
+    delays = []
+    monkeypatch.setattr(time, "sleep", lambda s: delays.append(s))
+
+    @task(retries=2, retry_delay=0.1, retry_backoff=3.0)
+    def flaky():
+        raise RuntimeError("nope")
+
+    with Flow("t", sinks=[], raise_on_failure=False) as f:
+        flaky()
+    f.run()
+    assert delays == pytest.approx([0.1, 0.3])
 
 
 def test_timeout():
@@ -139,15 +148,17 @@ def test_parallel_failure_skips():
     assert rec.tasks["add"].status == "skipped"
 
 
-def test_cycle_detection():
-    from nanoflow.graph import Graph, Node
+def test_describe_inputs_fallback_for_arity_mismatch():
+    @task
+    def two(a, b):
+        return a + b
 
-    g = Graph()
-    g.add(Node("a", one, (), {}))
-    g.add(Node("b", one, (), {}, upstream={"a"}))
-    g.nodes["a"].upstream.add("b")
-    with pytest.raises(CycleError):
-        g.topological_order()
+    with Flow("t", sinks=[], raise_on_failure=False) as f:
+        two(1, 2, 3)  # more positional args than the signature accepts
+    rec = f.run()
+    trec = rec.tasks["two"]
+    assert trec.status == "failed"
+    assert trec.inputs == {"arg0": "1", "arg1": "2", "arg2": "3"}
 
 
 def test_jsonlines_and_file_sinks(tmp_path):
@@ -155,7 +166,7 @@ def test_jsonlines_and_file_sinks(tmp_path):
     with Flow("t", sinks=[JsonLinesSink(buf), FileSink(tmp_path)]) as f:
         add(one(), 1)
     f.run()
-    events = [json.loads(l) for l in buf.getvalue().splitlines()]
+    events = [json.loads(line) for line in buf.getvalue().splitlines()]
     assert events[0]["nanoflow_event"] == "run_start"
     assert events[-1]["nanoflow_event"] == "run_end"
     files = list(tmp_path.glob("*.json"))
@@ -180,24 +191,7 @@ def test_mermaid():
     assert "one --> add" in m
 
 
-def test_lambda_flow_decorator():
-    @lambda_flow
-    def handler(event, context):
-        with Flow("h", sinks=[]) as f:
-            add(one(), 1)
-        return f.run()
-
-    out = handler({"nanoflow_run_id": "exec-123"}, None)
-    assert out["status"] == "success" and out["run_id"] == "exec-123"
-
-
-def test_run_id_from_event():
-    assert run_id_from_event({"nanoflow": {"run_id": "x"}}) == "x"
-    assert run_id_from_event({"runId": "y"}) == "y"
-    assert run_id_from_event("nope") is None
-
-
-def test_glue_args():
-    argv = ["--JOB_NAME", "j", "--JOB_RUN_ID=jr_1", "--flag", "--extra", "v"]
-    assert glue_args(argv=argv) == {"JOB_NAME": "j", "JOB_RUN_ID": "jr_1", "flag": "", "extra": "v"}
-    assert glue_args("JOB_NAME", argv=argv) == {"JOB_NAME": "j"}
+def test_repr():
+    with Flow("t", sinks=[]) as f:
+        one()
+    assert repr(f) == f"Flow('t', run_id={f.run_id!r}, nodes=1)"

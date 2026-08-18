@@ -2,11 +2,13 @@
 from __future__ import annotations
 
 import concurrent.futures as cf
+import contextvars
 import logging
 import threading
 import time
 import uuid
-from typing import Any, Iterable, Optional
+from collections.abc import Iterable
+from typing import Any
 
 from nanoflow import env as _env
 from nanoflow.context import pop_flow, push_flow
@@ -40,9 +42,9 @@ class Flow:
         self,
         name: str,
         *,
-        run_id: Optional[str] = None,
-        params: Optional[dict[str, Any]] = None,
-        sinks: Optional[Iterable[Sink]] = None,
+        run_id: str | None = None,
+        params: dict[str, Any] | None = None,
+        sinks: Iterable[Sink] | None = None,
         max_workers: int = 1,
         fail_fast: bool = True,
         raise_on_failure: bool = True,
@@ -56,7 +58,7 @@ class Flow:
         self.graph = Graph()
         self._results: dict[str, Any] = {}
         self._counter: dict[str, int] = {}
-        self._token = None
+        self._token: contextvars.Token | None = None
         runtime = _env.detect_runtime()
         self.sinks: list[Sink] = list(sinks) if sinks is not None else default_sinks(runtime)
         self.record = RunRecord(
@@ -64,11 +66,12 @@ class Flow:
         )
 
     # ------------------------------------------------------------------ building
-    def __enter__(self) -> "Flow":
+    def __enter__(self) -> Flow:  # noqa: PYI034 - Self needs typing_extensions on py39
         self._token = push_flow(self)
         return self
 
-    def __exit__(self, *exc: Any) -> None:
+    def __exit__(self, *exc: object) -> None:
+        assert self._token is not None, "__exit__ called without a matching __enter__"
         pop_flow(self._token)
         self._token = None
 
@@ -153,7 +156,7 @@ class Flow:
         self._skip_remaining()
 
     def _skip_remaining(self) -> None:
-        for nid, t in self.record.tasks.items():
+        for t in self.record.tasks.values():
             if t.status == "pending":
                 t.mark_skipped("upstream failed or flow stopped")
                 self._emit("on_task_end", self.record, t)
@@ -177,7 +180,7 @@ class Flow:
 
         attempts_allowed = task.retries + 1
         delay = task.retry_delay
-        last_exc: Optional[BaseException] = None
+        last_exc: BaseException | None = None
         for attempt in range(1, attempts_allowed + 1):
             trec.attempts = attempt
             trec.mark_running()
@@ -254,7 +257,7 @@ def _describe_inputs(task: Task, args: tuple, kwargs: dict) -> dict[str, str]:
         }
 
 
-def _call_with_timeout(task: Task, args: tuple, kwargs: dict, timeout: Optional[float]) -> Any:
+def _call_with_timeout(task: Task, args: tuple, kwargs: dict, timeout: float | None) -> Any:
     if timeout is None:
         return task.fn(*args, **kwargs)
     # Thread-based timeout: portable (works in Lambda/Glue where signals may not).
