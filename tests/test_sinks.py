@@ -35,6 +35,25 @@ def test_logsink_logs_failure_as_error(caplog):
     assert any("FAILED after 1 attempt(s): ValueError: nope" in r.getMessage() for r in errors)
 
 
+def test_filesink_writes_under_run_id_subdirectory(tmp_path):
+    with Flow("t", sinks=[FileSink(tmp_path)]) as f:
+        one()
+    rec = f.run()
+    path = tmp_path / rec.run_id / "t.json"
+    assert path.exists()
+
+
+def test_filesink_groups_multiple_flows_sharing_a_run_id(tmp_path):
+    with Flow("step-a", run_id="shared", sinks=[FileSink(tmp_path)]) as f:
+        one()
+    f.run()
+    with Flow("step-b", run_id="shared", sinks=[FileSink(tmp_path)]) as f:
+        one()
+    f.run()
+    files = sorted(p.name for p in (tmp_path / "shared").glob("*.json"))
+    assert files == ["step-a.json", "step-b.json"]
+
+
 def test_default_sinks_local_uses_log_and_file():
     sinks = default_sinks("local")
     assert any(isinstance(s, LogSink) for s in sinks)
@@ -68,9 +87,9 @@ def test_s3sink_uploads_run_json_via_injected_client():
     sink = S3Sink("my-bucket", prefix="runs", client=client)
     with Flow("t", sinks=[sink]) as f:
         one()
-    f.run()
+    rec = f.run()
     assert len(client.calls) == 1
     call = client.calls[0]
     assert call["Bucket"] == "my-bucket"
-    assert call["Key"].startswith("runs/t/")
+    assert call["Key"] == f"runs/{rec.run_id}/t.json"
     assert call["ContentType"] == "application/json"
